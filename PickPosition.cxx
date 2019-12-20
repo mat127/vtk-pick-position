@@ -124,8 +124,8 @@ int main(int argc, char* argv[]) {
 
     // Set the custom type to use for interaction.
     auto style =
-//            vtkSmartPointer<WorldPointStyle>::New();
             vtkSmartPointer<WorldPointStyle>::New();
+//            vtkSmartPointer<PropPointStyle>::New();
     style->SetDefaultRenderer(renderer);
 
     renderWindowInteractor->SetInteractorStyle(style);
