@@ -18,7 +18,6 @@
 
 class MouseInteractorStyle : public vtkInteractorStyleTrackballCamera {
 public:
-    //static MouseInteractorStyle* New();
     vtkTypeMacro(MouseInteractorStyle,
         vtkInteractorStyleTrackballCamera);
 
@@ -35,7 +34,7 @@ public:
         vtkInteractorStyleTrackballCamera::OnLeftButtonDown();
     }
 
-    virtual double * PickPosition(int * clickPosition) = 0;
+    virtual double * PickPosition(const int * clickPosition) = 0;
 
     void MarkPosition(double * position) {
         auto mark =
@@ -47,17 +46,18 @@ public:
     }
 };
 
-class WorldPointStyle : public MouseInteractorStyle {
+
+class WorldPointPickerStyle : public MouseInteractorStyle {
 public:
-    static WorldPointStyle* New();
-    vtkTypeMacro(WorldPointStyle,
+    static WorldPointPickerStyle* New();
+    vtkTypeMacro(WorldPointPickerStyle,
         MouseInteractorStyle);
 
-    WorldPointStyle() {
+    WorldPointPickerStyle() {
         picker = vtkSmartPointer<vtkWorldPointPicker>::New();
     }
 
-    virtual double * PickPosition(int * clickPos) {
+    virtual double * PickPosition(const int * clickPos) {
         picker->Pick(clickPos[0], clickPos[1], 0, this->GetDefaultRenderer());
         return picker->GetPickPosition();
     }
@@ -66,19 +66,19 @@ private:
     vtkSmartPointer<vtkWorldPointPicker> picker;
 };
 
-vtkStandardNewMacro(WorldPointStyle);
+vtkStandardNewMacro(WorldPointPickerStyle);
 
-class PropPointStyle : public MouseInteractorStyle {
+class PropPickerStyle : public MouseInteractorStyle {
 public:
-    static PropPointStyle* New();
-    vtkTypeMacro(PropPointStyle,
+    static PropPickerStyle* New();
+    vtkTypeMacro(PropPickerStyle,
         MouseInteractorStyle);
 
-    PropPointStyle() {
+    PropPickerStyle() {
         picker = vtkSmartPointer<vtkPropPicker>::New();
     }
 
-    virtual double * PickPosition(int * clickPos) {
+    virtual double * PickPosition(const int * clickPos) {
         if(picker->Pick(clickPos[0], clickPos[1], 0, this->GetDefaultRenderer()) == 0)
             return nullptr;
         return picker->GetPickPosition();
@@ -88,44 +88,80 @@ private:
     vtkSmartPointer<vtkPropPicker> picker;
 };
 
-vtkStandardNewMacro(PropPointStyle);
+vtkStandardNewMacro(PropPickerStyle);
 
-// Execute application.
+
+class RendererPickStyle : public MouseInteractorStyle {
+public:
+    static RendererPickStyle* New();
+    vtkTypeMacro(RendererPickStyle,
+        MouseInteractorStyle);
+
+    RendererPickStyle() {}
+
+    virtual double * PickPosition(const int * clickPos) {
+        auto renderer = this->GetDefaultRenderer();
+        if(renderer->PickProp(clickPos[0], clickPos[1]) == nullptr)
+            return nullptr;
+
+        double display[3];
+        display[0] = clickPos[0];
+        display[1] = clickPos[1];
+        display[2] = renderer->GetPickedZ();
+        
+        cout<<display[2]<<endl;
+
+        renderer->SetDisplayPoint (display);
+        renderer->DisplayToWorld ();
+        double * world = renderer->GetWorldPoint ();
+
+        double * picked = new double[3];
+        for (int i=0; i < 3; i++) {
+            picked[i] = world[i] / world[3];
+        }
+        
+        return picked;
+    }
+};
+
+vtkStandardNewMacro(RendererPickStyle);
+
 
 int main(int argc, char* argv[]) {
-    auto colors =
-            vtkSmartPointer<vtkNamedColors>::New();
 
+    auto colors = vtkSmartPointer<vtkNamedColors>::New();
     colors->SetColor("Bkg", 0.3, 0.4, 0.5);
 
     int numberOfSpheres = 10;
     if (argc > 1) {
         numberOfSpheres = atoi(argv[1]);
     }
+
     // A renderer and render window
-    auto renderer =
-            vtkSmartPointer<vtkRenderer>::New();
-    auto renderWindow =
-            vtkSmartPointer<vtkRenderWindow>::New();
+    auto renderWindow = vtkSmartPointer<vtkRenderWindow>::New();
     renderWindow->SetSize(640, 480);
+    renderWindow->SetNumberOfLayers(2);
+
+    // add 1st renderer
+    auto renderer = vtkSmartPointer<vtkRenderer>::New();
+    renderer->SetLayer(0);
     renderWindow->AddRenderer(renderer);
 
     // add a 2nd renderer
-    auto renderer1 =
-            vtkSmartPointer<vtkRenderer>::New();
+    auto renderer1 = vtkSmartPointer<vtkRenderer>::New();
     renderer1->SetLayer(1);
-    renderWindow->SetNumberOfLayers(2);
     renderWindow->AddRenderer(renderer1);
     
     // An interactor
     auto renderWindowInteractor =
-            vtkSmartPointer<vtkRenderWindowInteractor>::New();
+        vtkSmartPointer<vtkRenderWindowInteractor>::New();
     renderWindowInteractor->SetRenderWindow(renderWindow);
 
     // Set the custom type to use for interaction.
     auto style =
-            vtkSmartPointer<WorldPointStyle>::New();
-//            vtkSmartPointer<PropPointStyle>::New();
+//            vtkSmartPointer<WorldPointPickerStyle>::New();
+//            vtkSmartPointer<PropPickerStyle>::New();
+        vtkSmartPointer<RendererPickStyle>::New();
     style->SetDefaultRenderer(renderer);
 
     renderWindowInteractor->SetInteractorStyle(style);
