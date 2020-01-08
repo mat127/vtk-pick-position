@@ -109,8 +109,6 @@ public:
         display[1] = clickPos[1];
         display[2] = renderer->GetPickedZ();
         
-        cout<<display[2]<<endl;
-
         renderer->SetDisplayPoint (display);
         renderer->DisplayToWorld ();
         double * world = renderer->GetWorldPoint ();
